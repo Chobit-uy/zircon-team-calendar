@@ -58,7 +58,7 @@ class GoogleSheetsService {
 
   // URL del Google Form proporcionado
   getGoogleFormUrl(): string {
-    return 'https://docs.google.com/forms/d/e/1FAIpQLScZRI6NlR_A-PHbpJksaDk8_c_adfxLCmh-syN3Mqlw2L_rYw/viewform';
+    return 'https://docs.google.com/forms/d/e/1FAIpQLSczGCvGvpeenWw2jzm--GpEz9X4HUQqh_7SmrzvWGYOsU5R-g/viewform';
   }
 }
 
