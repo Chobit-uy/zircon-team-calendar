@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, Save } from 'lucide-react';
+import { Plus, Trash2, Calendar, Save, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -18,7 +18,10 @@ export function AdminView() {
     scope: '' as Holiday['scope'] | ''
   });
   const [saving, setSaving] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
   const { toast } = useToast();
+
+  const ITEMS_PER_PAGE = 5;
 
   useEffect(() => {
     loadHolidays();
@@ -105,6 +108,24 @@ export function AdminView() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  // Calcular feriados paginados
+  const startIndex = currentPage * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const paginatedHolidays = holidays.slice(startIndex, endIndex);
+  const totalPages = Math.ceil(holidays.length / ITEMS_PER_PAGE);
+
+  const handlePreviousPage = () => {
+    if (currentPage > 0) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages - 1) {
+      setCurrentPage(currentPage + 1);
+    }
   };
 
   return (
@@ -199,31 +220,67 @@ export function AdminView() {
                 <p className="text-sm">Agrega el primer feriado usando el formulario</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {holidays.map(holiday => (
-                  <div 
-                    key={holiday.id}
-                    className="flex items-center justify-between p-3 border rounded-lg bg-gradient-subtle"
-                  >
-                    <div>
-                      <h4 className="font-medium text-foreground">{holiday.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(holiday.date)}
-                      </p>
-                      <span className="inline-block mt-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
-                        {holiday.scope}
-                      </span>
-                    </div>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDeleteHoliday(holiday.id)}
+              <>
+                <div className="space-y-3">
+                  {paginatedHolidays.map(holiday => (
+                    <div 
+                      key={holiday.id}
+                      className="flex items-center justify-between p-3 border rounded-lg bg-gradient-subtle"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                      <div>
+                        <h4 className="font-medium text-foreground">{holiday.name}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(holiday.date)}
+                        </p>
+                        <span className="inline-block mt-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                          {holiday.scope}
+                        </span>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteHoliday(holiday.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Paginación */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 mt-4 border-t">
+                    <div className="text-sm text-muted-foreground">
+                      Mostrando {startIndex + 1}-{Math.min(endIndex, holidays.length)} de {holidays.length} feriados
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePreviousPage}
+                        disabled={currentPage === 0}
+                        className="flex items-center space-x-1"
+                      >
+                        <ChevronLeft className="w-4 h-4" />
+                        <span>Anterior</span>
+                      </Button>
+                      <span className="text-sm text-muted-foreground px-3">
+                        {currentPage + 1} / {totalPages}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleNextPage}
+                        disabled={currentPage >= totalPages - 1}
+                        className="flex items-center space-x-1"
+                      >
+                        <span>Siguiente</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
