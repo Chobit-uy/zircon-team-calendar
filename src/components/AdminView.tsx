@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Holiday } from '@/types';
 import { holidayService } from '@/services/holidayService';
 import { useToast } from '@/hooks/use-toast';
@@ -13,7 +14,8 @@ export function AdminView() {
   const [loading, setLoading] = useState(true);
   const [newHoliday, setNewHoliday] = useState({
     name: '',
-    date: ''
+    date: '',
+    scope: '' as Holiday['scope'] | ''
   });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
@@ -40,7 +42,7 @@ export function AdminView() {
   };
 
   const handleAddHoliday = async () => {
-    if (!newHoliday.name.trim() || !newHoliday.date) {
+    if (!newHoliday.name.trim() || !newHoliday.date || !newHoliday.scope) {
       toast({
         title: "Error",
         description: "Por favor completa todos los campos",
@@ -54,11 +56,12 @@ export function AdminView() {
       const holiday = await holidayService.addHoliday({
         name: newHoliday.name.trim(),
         date: newHoliday.date,
+        scope: newHoliday.scope as Holiday['scope'],
         createdBy: 'admin@zircon.tech' // En producción esto vendría del usuario logueado
       });
 
       setHolidays(prev => [...prev, holiday].sort((a, b) => a.date.localeCompare(b.date)));
-      setNewHoliday({ name: '', date: '' });
+      setNewHoliday({ name: '', date: '', scope: '' });
       
       toast({
         title: "Éxito",
@@ -143,6 +146,24 @@ export function AdminView() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="holiday-scope">Ámbito</Label>
+              <Select 
+                value={newHoliday.scope} 
+                onValueChange={(value: Holiday['scope']) => setNewHoliday(prev => ({ ...prev, scope: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el ámbito" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Nacional">Nacional</SelectItem>
+                  <SelectItem value="Local/Regional">Local/Regional</SelectItem>
+                  <SelectItem value="Empresa">Empresa</SelectItem>
+                  <SelectItem value="Otro">Otro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <Button 
               onClick={handleAddHoliday} 
               disabled={saving}
@@ -189,6 +210,9 @@ export function AdminView() {
                       <p className="text-sm text-muted-foreground">
                         {formatDate(holiday.date)}
                       </p>
+                      <span className="inline-block mt-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                        {holiday.scope}
+                      </span>
                     </div>
                     <Button
                       variant="destructive"

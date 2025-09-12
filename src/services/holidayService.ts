@@ -6,6 +6,7 @@ const mockHolidays: Holiday[] = [
     id: '1',
     name: 'Día de la Independencia',
     date: '2024-09-16',
+    scope: 'Nacional',
     createdBy: 'admin@zircon.tech',
     createdAt: '2024-09-01T09:00:00Z'
   },
@@ -13,6 +14,7 @@ const mockHolidays: Holiday[] = [
     id: '2', 
     name: 'Día de Acción de Gracias',
     date: '2024-11-28',
+    scope: 'Empresa',
     createdBy: 'admin@zircon.tech',
     createdAt: '2024-09-01T09:00:00Z'
   }
