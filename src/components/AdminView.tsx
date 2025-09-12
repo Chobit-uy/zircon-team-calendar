@@ -82,11 +82,21 @@ export function AdminView() {
     }
   };
 
-  const handleDeleteHoliday = async (id: string) => {
+  const handleDeleteHoliday = async (holiday: Holiday) => {
     try {
-      const success = await holidayService.deleteHoliday(id);
+      const rowIndex = holiday.rowIndex;
+      if (!rowIndex) {
+        toast({
+          title: "Error",
+          description: "No se puede eliminar este feriado",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      const success = await holidayService.deleteHoliday(rowIndex);
       if (success) {
-        setHolidays(prev => prev.filter(h => h.id !== id));
+        setHolidays(prev => prev.filter(h => h.id !== holiday.id));
         toast({
           title: "Éxito",
           description: "Feriado eliminado correctamente"
@@ -239,7 +249,7 @@ export function AdminView() {
                       <Button
                         variant="destructive"
                         size="sm"
-                        onClick={() => handleDeleteHoliday(holiday.id)}
+                        onClick={() => handleDeleteHoliday(holiday)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

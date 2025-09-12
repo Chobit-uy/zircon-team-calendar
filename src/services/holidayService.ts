@@ -1,59 +1,97 @@
 import { Holiday } from '@/types';
 
-// Mock data para feriados
-const mockHolidays: Holiday[] = [
-  {
-    id: '1',
-    name: 'Día de la Independencia',
-    date: '2024-09-16',
-    scope: 'Nacional',
-    createdBy: 'admin@zircon.tech',
-    createdAt: '2024-09-01T09:00:00Z'
-  },
-  {
-    id: '2', 
-    name: 'Día de Acción de Gracias',
-    date: '2024-11-28',
-    scope: 'Empresa',
-    createdBy: 'admin@zircon.tech',
-    createdAt: '2024-09-01T09:00:00Z'
-  }
-];
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/a/macros/zircon.tech/s/AKfycby7PGv445MKUswcEuzBwCCEeL9OMH7lGEjzcFWiLvN1VC7Om8u3Sgrr6TW1Y9qC3LYX/exec';
+
+interface HolidayResponse {
+  holidays: Array<{
+    nombre: string;
+    fecha: string;
+    ambito: string;
+    rowIndex: number;
+  }>;
+}
 
 class HolidayService {
-  private holidays: Holiday[] = [...mockHolidays];
-
   async getHolidays(): Promise<Holiday[]> {
-    // Simular delay de red
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return this.holidays;
+    try {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data: HolidayResponse = await response.json();
+      
+      return data.holidays.map(holiday => ({
+        id: holiday.rowIndex.toString(),
+        name: holiday.nombre,
+        date: holiday.fecha,
+        scope: holiday.ambito as Holiday['scope'],
+        createdBy: 'admin@zircon.tech',
+        createdAt: new Date().toISOString(),
+        rowIndex: holiday.rowIndex
+      }));
+    } catch (error) {
+      console.error('Error fetching holidays:', error);
+      throw new Error('No se pudieron cargar los feriados desde Google Sheets');
+    }
   }
 
   async addHoliday(holiday: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday> {
-    const newHoliday: Holiday = {
-      ...holiday,
-      id: Math.random().toString(36).substr(2, 9),
-      createdAt: new Date().toISOString()
-    };
-    
-    this.holidays.push(newHoliday);
-    return newHoliday;
+    try {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'add',
+          nombre: holiday.name,
+          fecha: holiday.date,
+          ambito: holiday.scope
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      
+      return {
+        ...holiday,
+        id: result.rowIndex?.toString() || Date.now().toString(),
+        createdAt: new Date().toISOString(),
+        rowIndex: result.rowIndex
+      };
+    } catch (error) {
+      console.error('Error adding holiday:', error);
+      throw new Error('No se pudo agregar el feriado');
+    }
   }
 
-  async updateHoliday(id: string, updates: Partial<Holiday>): Promise<Holiday | null> {
-    const index = this.holidays.findIndex(h => h.id === id);
-    if (index === -1) return null;
-    
-    this.holidays[index] = { ...this.holidays[index], ...updates };
-    return this.holidays[index];
-  }
+  async deleteHoliday(rowIndex: number): Promise<boolean> {
+    try {
+      const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'delete',
+          rowIndex: rowIndex
+        })
+      });
 
-  async deleteHoliday(id: string): Promise<boolean> {
-    const index = this.holidays.findIndex(h => h.id === id);
-    if (index === -1) return false;
-    
-    this.holidays.splice(index, 1);
-    return true;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting holiday:', error);
+      throw new Error('No se pudo eliminar el feriado');
+    }
   }
 }
 
