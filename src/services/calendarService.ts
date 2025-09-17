@@ -3,7 +3,14 @@ import { googleSheetsService } from './googleSheets';
 import { holidayService } from './holidayService';
 
 class CalendarService {
+  private eventsCache: { [key: string]: CalendarEvent[] } = {};
+
   async getCalendarEvents(month: number, year: number): Promise<CalendarEvent[]> {
+    const cacheKey = `${year}-${month}`;
+    if (this.eventsCache[cacheKey]) {
+      return this.eventsCache[cacheKey];
+    }
+
     const [timeOffEntries, holidays] = await Promise.all([
       googleSheetsService.getTimeOffEntries(),
       holidayService.getHolidays()
@@ -49,7 +56,8 @@ class CalendarService {
       }
     });
 
-    return events.sort((a, b) => a.date.localeCompare(b.date));
+    this.eventsCache[cacheKey] = events.sort((a, b) => a.date.localeCompare(b.date));
+    return this.eventsCache[cacheKey];
   }
 
   private mapTypeToEventType(type: TimeOffEntry['type']): CalendarEvent['type'] {

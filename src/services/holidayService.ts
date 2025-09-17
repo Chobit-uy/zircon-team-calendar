@@ -49,8 +49,6 @@ class HolidayService {
   }
 
   async addHoliday(holiday: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday> {
-    console.log('yyyyyyyyyyyy Adding holiday:', holiday);
-    console.log('yyyyyyyyyyyy Current timestamp:',  Date.now().toString());
 
     try {
       const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -66,12 +64,10 @@ class HolidayService {
           ambito: holiday.scope
         })
       });
-      console.log('yyyyyyyyyyyy 1');
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-console.log('yyyyyyyyyyyy 2');
       const result = await response.json();
       
       return {
