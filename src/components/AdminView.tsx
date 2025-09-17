@@ -1,30 +1,39 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Calendar, Save, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Holiday } from '@/types';
+import { Badge } from '@/components/ui/badge';
+import { Holiday, CalendarEvent } from '@/types';
 import { holidayService } from '@/services/holidayService';
+import { googleSheetsService } from '@/services/googleSheets';
+import { calendarService } from '@/services/calendarService';
 import { useToast } from '@/hooks/use-toast';
 
+// TeamView logic
+interface TeamMemberStats {
+  name: string;
+  email: string;
+  totalDaysOff: number;
+  upcomingEvents: CalendarEvent[];
+  lastTimeOff: string | null;
+}
+
 export function AdminView() {
+  // Holidays
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newHoliday, setNewHoliday] = useState({
-    name: '',
-    date: '',
-    scope: '' as Holiday['scope'] | ''
-  });
-  const [saving, setSaving] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
-  const { toast } = useToast();
 
+  // Team stats
+  const [teamStats, setTeamStats] = useState<TeamMemberStats[]>([]);
+  const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
+
+  // Pagination for holidays
+  const [currentPage, setCurrentPage] = useState(0);
   const ITEMS_PER_PAGE = 5;
+  const { toast } = useToast();
 
   useEffect(() => {
     loadHolidays();
+    loadTeamData();
   }, []);
 
   const loadHolidays = async () => {
@@ -44,71 +53,70 @@ export function AdminView() {
     }
   };
 
-  const handleAddHoliday = async () => {
-    if (!newHoliday.name.trim() || !newHoliday.date || !newHoliday.scope) {
-      toast({
-        title: "Error",
-        description: "Por favor completa todos los campos",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setSaving(true);
+  const loadTeamData = async () => {
+    setLoading(true);
     try {
-      const holiday = await holidayService.addHoliday({
-        name: newHoliday.name.trim(),
-        date: newHoliday.date,
-        scope: newHoliday.scope as Holiday['scope'],
-        createdBy: 'admin@zircon.tech' // En producción esto vendría del usuario logueado
+      const timeOffEntries = await googleSheetsService.getTimeOffEntries();
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+
+      // Obtener eventos del mes actual y siguiente
+      const [currentMonthEvents, nextMonthEvents] = await Promise.all([
+        calendarService.getCalendarEvents(currentMonth, currentYear),
+        calendarService.getCalendarEvents(currentMonth + 1, currentYear)
+      ]);
+
+      const allEvents = [...currentMonthEvents, ...nextMonthEvents];
+      const upcoming = allEvents.filter(event =>
+        new Date(event.date) >= currentDate
+      ).slice(0, 10);
+
+      setUpcomingEvents(upcoming);
+
+      // Agrupar por empleado
+      const employeeMap = new Map<string, TeamMemberStats>();
+
+      timeOffEntries.forEach(entry => {
+        if (!employeeMap.has(entry.email)) {
+          employeeMap.set(entry.email, {
+            name: entry.employeeName,
+            email: entry.email,
+            totalDaysOff: 0,
+            upcomingEvents: [],
+            lastTimeOff: null
+          });
+        }
+
+        const stats = employeeMap.get(entry.email)!;
+
+        // Calcular días
+        const startDate = new Date(entry.startDate);
+        const endDate = new Date(entry.endDate);
+        const diffTime = Math.abs(endDate.getTime() - startDate.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        const daysToAdd = entry.halfOrFull === 'Half Day' ? diffDays * 0.5 : diffDays;
+
+        stats.totalDaysOff += daysToAdd;
+
+        // Última ausencia
+        if (!stats.lastTimeOff || entry.startDate > stats.lastTimeOff) {
+          stats.lastTimeOff = entry.startDate;
+        }
+
+        // Eventos próximos
+        const memberUpcoming = allEvents.filter(event =>
+          event.employeeName === entry.employeeName &&
+          new Date(event.date) >= currentDate
+        );
+        stats.upcomingEvents = memberUpcoming;
       });
 
-      setHolidays(prev => [...prev, holiday].sort((a, b) => a.date.localeCompare(b.date)));
-      setNewHoliday({ name: '', date: '', scope: '' });
-      
-      toast({
-        title: "Éxito",
-        description: "Feriado agregado correctamente"
-      });
+      setTeamStats(Array.from(employeeMap.values()).sort((a, b) => a.name.localeCompare(b.name)));
     } catch (error) {
-      console.error('Error adding holiday:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el feriado",
-        variant: "destructive"
-      });
+      console.error('Error loading team data:', error);
     } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDeleteHoliday = async (holiday: Holiday) => {
-    try {
-      const rowIndex = holiday.rowIndex;
-      if (!rowIndex) {
-        toast({
-          title: "Error",
-          description: "No se puede eliminar este feriado",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      const success = await holidayService.deleteHoliday(rowIndex);
-      if (success) {
-        setHolidays(prev => prev.filter(h => h.id !== holiday.id));
-        toast({
-          title: "Éxito",
-          description: "Feriado eliminado correctamente"
-        });
-      }
-    } catch (error) {
-      console.error('Error deleting holiday:', error);
-      toast({
-        title: "Error", 
-        description: "No se pudo eliminar el feriado",
-        variant: "destructive"
-      });
+      setLoading(false);
     }
   };
 
@@ -118,6 +126,32 @@ export function AdminView() {
       month: 'long',
       day: 'numeric'
     });
+  };
+
+  const formatShortDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('es-ES', {
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
+  const getEventBadgeColor = (type: CalendarEvent['type']) => {
+    switch (type) {
+      case 'vacation':
+        return 'bg-vacation text-white';
+      case 'birthday':
+        return 'bg-birthday text-white';
+      case 'sick':
+        return 'bg-sick text-white';
+      case 'holiday':
+        return 'bg-holiday text-white';
+      default:
+        return 'bg-primary text-white';
+    }
+  };
+
+  const getEventTypeName = (type: CalendarEvent['type']) => {
+    return calendarService.getEventTypeName(type);
   };
 
   // Calcular feriados paginados
@@ -138,163 +172,138 @@ export function AdminView() {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-foreground">Administración</h2>
-          <p className="text-muted-foreground">Gestiona los feriados del equipo</p>
+          <p className="text-muted-foreground">Resumen de ausencias, próximos eventos y feriados</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Agregar nuevo feriado */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Plus className="w-5 h-5" />
-              <span>Agregar Feriado</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="holiday-name">Nombre del feriado</Label>
-              <Input
-                id="holiday-name"
-                placeholder="Ej: Día de la Independencia"
-                value={newHoliday.name}
-                onChange={(e) => setNewHoliday(prev => ({ ...prev, name: e.target.value }))}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="holiday-date">Fecha</Label>
-              <Input
-                id="holiday-date"
-                type="date"
-                value={newHoliday.date}
-                onChange={(e) => setNewHoliday(prev => ({ ...prev, date: e.target.value }))}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="holiday-scope">Ámbito</Label>
-              <Select 
-                value={newHoliday.scope} 
-                onValueChange={(value: Holiday['scope']) => setNewHoliday(prev => ({ ...prev, scope: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona el ámbito" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Nacional">Nacional</SelectItem>
-                  <SelectItem value="Local/Regional">Local/Regional</SelectItem>
-                  <SelectItem value="Empresa">Empresa</SelectItem>
-                  <SelectItem value="Otro">Otro</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Button 
-              onClick={handleAddHoliday} 
-              disabled={saving}
-              className="w-full bg-gradient-zircon hover:opacity-90"
-            >
-              {saving ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Agregar Feriado
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Lista de feriados */}
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Próximos eventos */}
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <Calendar className="w-5 h-5" />
-              <span>Feriados Programados</span>
+              <span>Próximos Eventos</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center h-32">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-              </div>
-            ) : holidays.length === 0 ? (
-              <div className="text-center text-muted-foreground py-8">
-                <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>No hay feriados programados</p>
-                <p className="text-sm">Agrega el primer feriado usando el formulario</p>
+            {upcomingEvents.length === 0 ? (
+              <div className="text-center text-muted-foreground py-4">
+                <Calendar className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No hay eventos próximos</p>
               </div>
             ) : (
-              <>
-                <div className="space-y-3">
-                  {paginatedHolidays.map(holiday => (
-                    <div 
-                      key={holiday.id}
-                      className="flex items-center justify-between p-3 border rounded-lg bg-gradient-subtle"
-                    >
-                      <div>
-                        <h4 className="font-medium text-foreground">{holiday.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {formatDate(holiday.date)}
-                        </p>
-                        <span className="inline-block mt-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
-                          {holiday.scope}
-                        </span>
-                      </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => handleDeleteHoliday(holiday)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+              <div className="space-y-3">
+                {upcomingEvents.slice(0, 8).map(event => (
+                  <div key={event.id} className="flex items-center justify-between p-2 border rounded">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {event.employeeName || event.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatShortDate(event.date)}
+                      </p>
                     </div>
-                  ))}
-                </div>
-
-                {/* Paginación */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between pt-4 mt-4 border-t">
-                    <div className="text-sm text-muted-foreground">
-                      Mostrando {startIndex + 1}-{Math.min(endIndex, holidays.length)} de {holidays.length} feriados
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handlePreviousPage}
-                        disabled={currentPage === 0}
-                        className="flex items-center space-x-1"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        <span>Anterior</span>
-                      </Button>
-                      <span className="text-sm text-muted-foreground px-3">
-                        {currentPage + 1} / {totalPages}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleNextPage}
-                        disabled={currentPage >= totalPages - 1}
-                        className="flex items-center space-x-1"
-                      >
-                        <span>Siguiente</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
+                    <Badge className={`text-xs ${getEventBadgeColor(event.type)}`}>
+                      {getEventTypeName(event.type)}
+                    </Badge>
                   </div>
-                )}
-              </>
+                ))}
+              </div>
             )}
           </CardContent>
         </Card>
+
+        {/* Miembros del Equipo */}
+        <div className="lg:col-span-2 space-y-4  ">
+
+          {/* Lista de feriados */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Calendar className="w-5 h-5" />
+                <span>Feriados Programados</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </div>
+              ) : holidays.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                  <p>No hay feriados programados</p>
+                  <p className="text-sm">Agrega el primer feriado usando el formulario</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    {paginatedHolidays.map(holiday => (
+                      <div
+                        key={holiday.id}
+                        className="flex items-center justify-between p-3 border rounded-lg bg-gradient-subtle"
+                      >
+                        <div>
+                          <h4 className="font-medium text-foreground">{holiday.name}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDate(holiday.date)}
+                          </p>
+                          <span className="inline-block mt-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
+                            {holiday.scope}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Paginación */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between pt-4 mt-4 border-t">
+                      <div className="text-sm text-muted-foreground">
+                        Mostrando {startIndex + 1}-{Math.min(endIndex, holidays.length)} de {holidays.length} feriados
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          className="flex items-center space-x-1 px-2 py-1 border rounded text-sm"
+                          onClick={handlePreviousPage}
+                          disabled={currentPage === 0}
+                        >
+                          <span>Anterior</span>
+                        </button>
+                        <span className="text-sm text-muted-foreground px-3">
+                          {currentPage + 1} / {totalPages}
+                        </span>
+                        <button
+                          type="button"
+                          className="flex items-center space-x-1 px-2 py-1 border rounded text-sm"
+                          onClick={handleNextPage}
+                          disabled={currentPage >= totalPages - 1}
+                        >
+                          <span>Siguiente</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
 
       {/* Información adicional */}
       <Card>

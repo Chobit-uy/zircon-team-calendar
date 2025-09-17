@@ -16,7 +16,7 @@ export interface Holiday {
   scope: 'Nacional' | 'Local/Regional' | 'Empresa' | 'Otro';
   createdBy: string;
   createdAt: string;
-  rowIndex?: number;
+  rowIndex?: string;
 }
 
 export interface CalendarEvent {

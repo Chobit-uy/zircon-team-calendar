@@ -18,6 +18,8 @@ export function CalendarView() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [popupEvents, setPopupEvents] = useState<CalendarEvent[] | null>(null);
+  const [popupDate, setPopupDate] = useState<string | null>(null);
 
   const currentMonth = currentDate.getMonth();
   const currentYear = currentDate.getFullYear();
@@ -114,6 +116,16 @@ export function CalendarView() {
     window.open(googleSheetsService.getGoogleFormUrl(), '_blank');
   };
 
+  const openEventsPopup = (events: CalendarEvent[], date: Date) => {
+    setPopupEvents(events);
+    setPopupDate(date.toISOString().split('T')[0]);
+  };
+
+  const closeEventsPopup = () => {
+    setPopupEvents(null);
+    setPopupDate(null);
+  };
+
   const days = getDaysInMonth();
 
   return (
@@ -190,7 +202,10 @@ export function CalendarView() {
                             </div>
                           ))}
                           {day.events.length > 2 && (
-                            <div className="text-xs text-muted-foreground px-1">
+                            <div
+                              className="text-xs text-muted-foreground px-1 cursor-pointer underline"
+                              onClick={() => openEventsPopup(day.events, day.date)}
+                            >
                               +{day.events.length - 2} más
                             </div>
                           )}
@@ -231,6 +246,39 @@ export function CalendarView() {
           </Card>
         </div>
       </div>
+
+      {/* Popup de eventos */}
+      {popupEvents && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-6 relative">
+            <button
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700"
+              onClick={closeEventsPopup}
+            >
+              ×
+            </button>
+            <h3 className="text-lg font-bold mb-2">
+              Eventos del día {popupDate}
+            </h3>
+            <ul className="space-y-2">
+              {popupEvents.map(event => (
+                <li key={event.id} className={`p-2 rounded ${getEventColor(event.type)}`}>
+                  <div className="font-medium">{event.employeeName || event.title}</div>
+                  <div className="text-xs">
+                    {event.title}
+                    {event.isHalfDay && ' (Medio día)'}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-4 flex justify-end">
+              <Button variant="outline" size="sm" onClick={closeEventsPopup}>
+                Cerrar
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

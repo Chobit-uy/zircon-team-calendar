@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Header } from '@/components/Header';
 import { CalendarView } from '@/components/CalendarView';
 import { AdminView } from '@/components/AdminView';
-import { TeamView } from '@/components/TeamView';
 
 const Index = () => {
   const [currentView, setCurrentView] = useState<'calendar' | 'admin' | 'team'>('calendar');
@@ -13,8 +12,6 @@ const Index = () => {
         return <CalendarView />;
       case 'admin':
         return <AdminView />;
-      case 'team':
-        return <TeamView />;
       default:
         return <CalendarView />;
     }

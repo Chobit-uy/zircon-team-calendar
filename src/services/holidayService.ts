@@ -1,36 +1,47 @@
 import { Holiday } from '@/types';
 
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/a/macros/zircon.tech/s/AKfycby7PGv445MKUswcEuzBwCCEeL9OMH7lGEjzcFWiLvN1VC7Om8u3Sgrr6TW1Y9qC3LYX/exec';
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4nvk9gsxZIyNYzQx2_dXEF-51-Qg4jl975Bl_Wc3XB8S4hmNZrItsIA8u3hDOLcC8/exec';
 
 interface HolidayResponse {
   holidays: Array<{
     nombre: string;
     fecha: string;
     ambito: string;
-    rowIndex: number;
+    rowIndex: string;
   }>;
 }
 
 class HolidayService {
   async getHolidays(): Promise<Holiday[]> {
     try {
-      const response = await fetch(GOOGLE_APPS_SCRIPT_URL);
-      
+      const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?type=holidays`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
-      const data: HolidayResponse = await response.json();
-      
-      return data.holidays.map(holiday => ({
-        id: holiday.rowIndex.toString(),
-        name: holiday.nombre,
-        date: holiday.fecha,
-        scope: holiday.ambito as Holiday['scope'],
-        createdBy: 'admin@zircon.tech',
-        createdAt: new Date().toISOString(),
-        rowIndex: holiday.rowIndex
-      }));
+      const data: any = await response.json();
+      // data es un array de arrays: [[headers], [row1], [row2], ...]
+      if (!Array.isArray(data) || data.length < 2) {
+        throw new Error('Formato de datos inválido');
+      }
+      const [headers, ...rows] = data;
+      const holidays = rows.map((row: any[]) => {
+        const obj: any = Object.fromEntries(headers.map((header: string, i: number) => [header, row[i]]));
+        // Normalizar scope
+        let scope: Holiday['scope'] = 'Otro';
+        if (obj.ambito === 'Nacional') scope = 'Nacional';
+        else if (obj.ambito === 'Empresa') scope = 'Empresa';
+        else if (obj.ambito === 'Local/Regional' || obj.ambito === 'local' || obj.ambito === 'Local') scope = 'Local/Regional';
+        return {
+          id: obj.rowIndex?.toString() || Math.random().toString(36).substr(2, 9),
+          name: obj.nombre || '',
+          date: obj.fecha || '',
+          scope,
+          createdBy: 'admin@zircon.tech',
+          createdAt: new Date().toISOString(),
+          rowIndex: obj.rowIndex
+        };
+      });
+      return holidays;
     } catch (error) {
       console.error('Error fetching holidays:', error);
       throw new Error('No se pudieron cargar los feriados desde Google Sheets');
@@ -38,6 +49,9 @@ class HolidayService {
   }
 
   async addHoliday(holiday: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday> {
+    console.log('yyyyyyyyyyyy Adding holiday:', holiday);
+    console.log('yyyyyyyyyyyy Current timestamp:',  Date.now().toString());
+
     try {
       const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
         method: 'POST',
@@ -46,16 +60,18 @@ class HolidayService {
         },
         body: JSON.stringify({
           action: 'add',
+          rowIndex: Date.now().toString(),
           nombre: holiday.name,
           fecha: holiday.date,
           ambito: holiday.scope
         })
       });
+      console.log('yyyyyyyyyyyy 1');
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+console.log('yyyyyyyyyyyy 2');
       const result = await response.json();
       
       return {

@@ -1,46 +1,19 @@
 import { TimeOffEntry } from '@/types';
-
-// Mock data para simular la conexión con Google Sheets
-// En producción esto se conectaría a la Google Sheets API
-const mockTimeOffData: TimeOffEntry[] = [
-  {
-    id: '1',
-    email: 'juan.perez@zircon.tech',
-    employeeName: 'Juan Pérez',
-    startDate: '2024-09-10',
-    endDate: '2024-09-12',
-    halfOrFull: 'Full Day',
-    type: 'Vacation / Day Off',
-    createdAt: '2024-09-01T10:00:00Z'
-  },
-  {
-    id: '2',
-    email: 'maria.garcia@zircon.tech',
-    employeeName: 'María García',
-    startDate: '2024-09-15',
-    endDate: '2024-09-15',
-    halfOrFull: 'Half Day',
-    type: 'Birthday',
-    createdAt: '2024-09-01T11:00:00Z'
-  },
-  {
-    id: '3',
-    email: 'carlos.rodriguez@zircon.tech',
-    employeeName: 'Carlos Rodríguez',
-    startDate: '2024-09-20',
-    endDate: '2024-09-21',
-    halfOrFull: 'Full Day',
-    type: 'Sick Day',
-    createdAt: '2024-09-01T12:00:00Z'
-  }
-];
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4nvk9gsxZIyNYzQx2_dXEF-51-Qg4jl975Bl_Wc3XB8S4hmNZrItsIA8u3hDOLcC8/exec';
 
 class GoogleSheetsService {
-  // Simula la obtención de datos desde Google Sheets
+  // Obtiene los datos desde Google Sheets usando fetch
   async getTimeOffEntries(): Promise<TimeOffEntry[]> {
-    // Simular delay de red
-    await new Promise(resolve => setTimeout(resolve, 500));
-    return mockTimeOffData;
+    try {
+      const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?type=vacations`);
+      if (!response.ok) throw new Error('Network response was not ok');
+      const data = await response.json();
+      // Se asume que el endpoint retorna un array de TimeOffEntry
+      return data as TimeOffEntry[];
+    } catch (error) {
+      console.error('Error fetching time off entries:', error);
+      return [];
+    }
   }
 
   // En producción, esto actualizaría automáticamente cuando el Google Form se actualice

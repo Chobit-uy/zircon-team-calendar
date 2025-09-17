@@ -45,16 +45,7 @@ export function Header({ currentView, onViewChange }: HeaderProps) {
               <Settings className="w-4 h-4 mr-2" />
               Administración
             </Button>
-            <Button
-              variant={currentView === 'team' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onViewChange('team')}
-              className="text-white hover:text-white"
-            >
-              <Users className="w-4 h-4 mr-2" />
-              Equipo
-            </Button>
-          </nav>
+           </nav>
         </div>
       </div>
     </header>
