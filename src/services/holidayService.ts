@@ -12,7 +12,12 @@ interface HolidayResponse {
 }
 
 class HolidayService {
+  private holidaysCache: Holiday[] | null = null;
+
   async getHolidays(): Promise<Holiday[]> {
+    if (this.holidaysCache) {
+      return this.holidaysCache;
+    }
     try {
       const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?type=holidays`);
       if (!response.ok) {
@@ -41,68 +46,11 @@ class HolidayService {
           rowIndex: obj.rowIndex
         };
       });
+      this.holidaysCache = holidays;
       return holidays;
     } catch (error) {
       console.error('Error fetching holidays:', error);
       throw new Error('No se pudieron cargar los feriados desde Google Sheets');
-    }
-  }
-
-  async addHoliday(holiday: Omit<Holiday, 'id' | 'createdAt'>): Promise<Holiday> {
-
-    try {
-      const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'add',
-          rowIndex: Date.now().toString(),
-          nombre: holiday.name,
-          fecha: holiday.date,
-          ambito: holiday.scope
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const result = await response.json();
-      
-      return {
-        ...holiday,
-        id: result.rowIndex?.toString() || Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        rowIndex: result.rowIndex
-      };
-    } catch (error) {
-      console.error('Error adding holiday:', error);
-      throw new Error('No se pudo agregar el feriado');
-    }
-  }
-
-  async deleteHoliday(rowIndex: number): Promise<boolean> {
-    try {
-      const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'delete',
-          rowIndex: rowIndex
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      return true;
-    } catch (error) {
-      console.error('Error deleting holiday:', error);
-      throw new Error('No se pudo eliminar el feriado');
     }
   }
 }
