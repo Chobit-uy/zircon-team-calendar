@@ -1,6 +1,6 @@
 import { Holiday } from '@/types';
 
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby4nvk9gsxZIyNYzQx2_dXEF-51-Qg4jl975Bl_Wc3XB8S4hmNZrItsIA8u3hDOLcC8/exec';
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQ_L2z8p68bCTftG03G9-SLhBIkt2rhI_Ip1i_21gwFdyPkgR-IgAUO7UZcEY8_3Cn/exec';
 
 interface HolidayResponse {
   holidays: Array<{
