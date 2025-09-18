@@ -1,6 +1,5 @@
 import { Holiday } from '@/types';
-
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQ_L2z8p68bCTftG03G9-SLhBIkt2rhI_Ip1i_21gwFdyPkgR-IgAUO7UZcEY8_3Cn/exec';
+import { GOOGLE_APPS_SCRIPT_URL } from '@/config/constants';
 
 interface HolidayResponse {
   holidays: Array<{
