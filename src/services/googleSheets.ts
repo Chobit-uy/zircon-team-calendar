@@ -1,5 +1,5 @@
 import { TimeOffEntry } from '@/types';
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQ_L2z8p68bCTftG03G9-SLhBIkt2rhI_Ip1i_21gwFdyPkgR-IgAUO7UZcEY8_3Cn/exec';
+import { GOOGLE_APPS_SCRIPT_URL, GOOGLE_FORM_URL } from '@/config/constants';
 
 class GoogleSheetsService {
   // Obtiene los datos desde Google Sheets usando fetch
@@ -31,7 +31,7 @@ class GoogleSheetsService {
 
   // URL del Google Form proporcionado
   getGoogleFormUrl(): string {
-    return 'https://docs.google.com/forms/d/e/1FAIpQLSczGCvGvpeenWw2jzm--GpEz9X4HUQqh_7SmrzvWGYOsU5R-g/viewform';
+    return GOOGLE_FORM_URL;
   }
 }
 
