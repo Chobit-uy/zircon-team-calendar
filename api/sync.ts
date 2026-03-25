@@ -34,16 +34,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     // Ensure tables exist before any DB operation
-    await initDb();
+    try { await initDb(); } catch(e) { return res.status(500).json({ error: 'Sync failed', step: 'initDb', detail: String(e) }); }
 
     // Fetch both sources in parallel
-    const [vacRes, holRes] = await Promise.all([
-      fetch(`${GAS_URL}?type=vacations`),
-      fetch(`${GAS_URL}?type=holidays`),
-    ]);
-
-    if (!vacRes.ok) throw new Error(`GAS vacations error: ${vacRes.status}`);
-    if (!holRes.ok) throw new Error(`GAS holidays error: ${holRes.status}`);
+    let vacRes: Response, holRes: Response;
+    try {
+      [vacRes, holRes] = await Promise.all([
+        fetch(`${GAS_URL}?type=vacations`),
+        fetch(`${GAS_URL}?type=holidays`),
+      ]);
+      if (!vacRes.ok) throw new Error(`GAS vacations error: ${vacRes.status}`);
+      if (!holRes.ok) throw new Error(`GAS holidays error: ${holRes.status}`);
+    } catch(e) { return res.status(500).json({ error: 'Sync failed', step: 'fetch', detail: String(e) }); }
 
     const vacRaw: unknown[] = await vacRes.json();
     const holidaysRaw: unknown[] = await holRes.json();
@@ -91,11 +93,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     // Full replace: clear then upsert
-    await clearTimeOffEntries();
-    await upsertTimeOffEntries(vacations);
-
-    await clearHolidays();
-    await upsertHolidays(holidays);
+    try { await clearTimeOffEntries(); } catch(e) { return res.status(500).json({ error: 'Sync failed', step: 'clearVacations', detail: String(e) }); }
+    try { await upsertTimeOffEntries(vacations); } catch(e) { return res.status(500).json({ error: 'Sync failed', step: 'upsertVacations', detail: String(e), sample: vacations[0] }); }
+    try { await clearHolidays(); } catch(e) { return res.status(500).json({ error: 'Sync failed', step: 'clearHolidays', detail: String(e) }); }
+    try { await upsertHolidays(holidays); } catch(e) { return res.status(500).json({ error: 'Sync failed', step: 'upsertHolidays', detail: String(e), sample: holidays[0] }); }
 
     return res.status(200).json({
       synced: true,
