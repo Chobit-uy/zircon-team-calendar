@@ -45,8 +45,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (!vacRes.ok) throw new Error(`GAS vacations error: ${vacRes.status}`);
     if (!holRes.ok) throw new Error(`GAS holidays error: ${holRes.status}`);
 
-    const vacations: TimeOffEntryRow[] = await vacRes.json();
+    const vacRaw: unknown[] = await vacRes.json();
     const holidaysRaw: unknown[] = await holRes.json();
+
+    // Parse vacations 2D array: [[headers], [row1], ...]
+    // Columns: Timestamp, Email Address, Starting, Finishing, Half Day or Full Day?, Type of Time off
+    if (!Array.isArray(vacRaw) || vacRaw.length < 2) {
+      throw new Error('Unexpected vacations format from GAS');
+    }
+    const [, ...vacRows] = vacRaw as string[][];
+    const vacations: TimeOffEntryRow[] = vacRows.map((row, idx) => {
+      const email = row[1] || '';
+      const startDate = row[2] || '';
+      const employeeName = email.split('@')[0] || `employee_${idx}`;
+      return {
+        id: `${email}-${startDate}-${idx}`,
+        email,
+        employeeName,
+        startDate,
+        endDate: row[3] || '',
+        halfOrFull: row[4] || 'Full Day',
+        type: row[5] || 'Vacation / Day Off',
+        createdAt: row[0] || new Date().toISOString(),
+      };
+    });
 
     // Parse holidays 2D array format: [[headers], [row1], [row2], ...]
     if (!Array.isArray(holidaysRaw) || holidaysRaw.length < 2) {
