@@ -1,6 +1,8 @@
 import { createClient, Client } from '@libsql/client';
+import { CREATE_TABLES_SQL } from './_schema';
 
 let client: Client | null = null;
+let initialized = false;
 
 export function getDb(): Client {
   if (!client) {
@@ -10,4 +12,13 @@ export function getDb(): Client {
     });
   }
   return client;
+}
+
+export async function initDb(): Promise<void> {
+  if (initialized) return;
+  const db = getDb();
+  for (const statement of CREATE_TABLES_SQL.split(';').map(s => s.trim()).filter(Boolean)) {
+    await db.execute(statement);
+  }
+  initialized = true;
 }
