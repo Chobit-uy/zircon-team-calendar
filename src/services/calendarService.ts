@@ -26,9 +26,11 @@ class CalendarService {
       // Generar eventos para cada día en el rango
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
-        const eventDate = new Date(dateStr);
+        // Comparar año/mes desde el string UTC para evitar bug de timezone:
+        // new Date("2025-04-01").getMonth() en UTC-3 devuelve Marzo en vez de Abril
+        const [eventYear, eventMonth] = dateStr.split('-').map(Number);
 
-        if (eventDate.getMonth() === month && eventDate.getFullYear() === year) {
+        if ((eventMonth - 1) === month && eventYear === year) {
           events.push({
             id: `${entry.id}-${dateStr}`,
             title: `${entry.employeeName} - ${this.getTypeLabel(entry.type)}`,
@@ -45,8 +47,8 @@ class CalendarService {
     holidays.forEach(holiday => {
       const holidayDate = new Date(holiday.date);
       const dateStr = holidayDate.toISOString().split('T')[0];
-      const eventDate = new Date(dateStr);
-      if (eventDate.getMonth() === month && eventDate.getFullYear() === year) {
+      const [eventYear, eventMonth] = dateStr.split('-').map(Number);
+      if ((eventMonth - 1) === month && eventYear === year) {
         events.push({
           id: `holiday-${holiday.id}`,
           title: holiday.name,
