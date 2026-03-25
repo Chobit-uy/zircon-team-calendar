@@ -20,22 +20,22 @@ class CalendarService {
 
     // Convertir entradas de tiempo libre a eventos de calendario
     timeOffEntries.forEach(entry => {
-      const startDate = new Date(entry[2]);
-      const endDate = new Date(entry[3]);
+      const startDate = new Date(entry.startDate);
+      const endDate = new Date(entry.endDate);
 
       // Generar eventos para cada día en el rango
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0];
         const eventDate = new Date(dateStr);
-        
+
         if (eventDate.getMonth() === month && eventDate.getFullYear() === year) {
           events.push({
-            id: `${entry[0]}-${dateStr}`,
-            title: `${entry[1]} - ${this.getTypeLabel(entry[5])}`,
+            id: `${entry.id}-${dateStr}`,
+            title: `${entry.employeeName} - ${this.getTypeLabel(entry.type)}`,
             date: dateStr,
-            type: this.mapTypeToEventType(entry[5]),
-            employeeName: entry[1],
-            isHalfDay: entry[4] === 'Half Day'
+            type: this.mapTypeToEventType(entry.type),
+            employeeName: entry.employeeName,
+            isHalfDay: entry.halfOrFull === 'Half Day'
           });
         }
       }

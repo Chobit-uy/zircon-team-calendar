@@ -1,14 +1,13 @@
 import { TimeOffEntry } from '@/types';
-import { GOOGLE_APPS_SCRIPT_URL, GOOGLE_FORM_URL } from '@/config/constants';
+import { API_BASE_URL, GOOGLE_FORM_URL } from '@/config/constants';
 
 class GoogleSheetsService {
-  // Obtiene los datos desde Google Sheets usando fetch
+  // Obtiene los datos desde la API interna (respaldada por Turso)
   async getTimeOffEntries(): Promise<TimeOffEntry[]> {
     try {
-      const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?type=vacations`);
+      const response = await fetch(`${API_BASE_URL}/api/vacations`);
       if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
-      // Se asume que el endpoint retorna un array de TimeOffEntry
       return data as TimeOffEntry[];
     } catch (error) {
       console.error('Error fetching time off entries:', error);
