@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { initDb } from './_db';
 import {
   clearTimeOffEntries,
   clearHolidays,
@@ -32,6 +33,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    // Ensure tables exist before any DB operation
+    await initDb();
+
     // Fetch both sources in parallel
     const [vacRes, holRes] = await Promise.all([
       fetch(`${GAS_URL}?type=vacations`),
