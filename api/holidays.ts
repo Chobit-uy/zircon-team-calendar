@@ -8,7 +8,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const db = getDb();
-    const result = await db.execute('SELECT * FROM holidays ORDER BY date');
+    const result = await db.execute('SELECT * FROM Holiday ORDER BY date');
 
     const holidays = result.rows.map(row => ({
       id: row.id,

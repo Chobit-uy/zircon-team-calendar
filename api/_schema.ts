@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS time_off_entries (
   synced_at     TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS holidays (
+CREATE TABLE IF NOT EXISTS Holiday (
   id         TEXT PRIMARY KEY,
   name       TEXT NOT NULL,
   date       TEXT NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS holidays (
 
 CREATE INDEX IF NOT EXISTS idx_toe_start ON time_off_entries(start_date);
 CREATE INDEX IF NOT EXISTS idx_toe_end   ON time_off_entries(end_date);
-CREATE INDEX IF NOT EXISTS idx_hol_date  ON holidays(date);
+CREATE INDEX IF NOT EXISTS idx_hol_date  ON Holiday(date);
 `;
 
 export interface TimeOffEntryRow {
@@ -82,7 +82,7 @@ export async function upsertHolidays(holidays: HolidayRow[]): Promise<void> {
   for (const chunk of chunks(holidays, CHUNK_SIZE)) {
     await db.batch(
       chunk.map(h => ({
-        sql: `INSERT OR REPLACE INTO holidays
+        sql: `INSERT OR REPLACE INTO Holiday
               (id, name, date, scope, created_by, created_at, row_index, synced_at)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         args: [h.id, h.name, h.date, h.scope, h.createdBy, h.createdAt, h.rowIndex ?? null, now],
@@ -97,5 +97,5 @@ export async function clearTimeOffEntries(): Promise<void> {
 }
 
 export async function clearHolidays(): Promise<void> {
-  await getDb().execute('DELETE FROM holidays');
+  await getDb().execute('DELETE FROM Holiday');
 }
