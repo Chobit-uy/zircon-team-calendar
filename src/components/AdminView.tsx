@@ -8,6 +8,33 @@ import { googleSheetsService } from '@/services/googleSheets';
 import { calendarService } from '@/services/calendarService';
 import { useToast } from '@/hooks/use-toast';
 
+const ALLOWED_COUNTRIES = ['ARGENTINA', 'URUGUAY', 'CHILE', 'YEMEN'] as const;
+type AllowedCountry = typeof ALLOWED_COUNTRIES[number];
+
+const COUNTRY_COLORS: Record<AllowedCountry, string> = {
+  ARGENTINA: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  URUGUAY:   'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
+  CHILE:     'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  YEMEN:     'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+};
+
+const COUNTRY_FLAGS: Record<AllowedCountry, string> = {
+  ARGENTINA: '🇦🇷',
+  URUGUAY:   '🇺🇾',
+  CHILE:     '🇨🇱',
+  YEMEN:     '🇾🇪',
+};
+
+function extractCountry(name: string): string {
+  const parts = name.split(' - ');
+  return parts.length > 1 ? parts[parts.length - 1].trim().toUpperCase() : '';
+}
+
+function stripCountry(name: string): string {
+  const parts = name.split(' - ');
+  return parts.length > 1 ? parts.slice(0, -1).join(' - ') : name;
+}
+
 // TeamView logic
 interface TeamMemberStats {
   name: string;
@@ -26,9 +53,6 @@ export function AdminView() {
   const [teamStats, setTeamStats] = useState<TeamMemberStats[]>([]);
   const [upcomingEvents, setUpcomingEvents] = useState<CalendarEvent[]>([]);
 
-  // Pagination for holidays
-  const [currentPage, setCurrentPage] = useState(0);
-  const ITEMS_PER_PAGE = 5;
   const { toast } = useToast();
 
   useEffect(() => {
@@ -154,23 +178,25 @@ export function AdminView() {
     return calendarService.getEventTypeName(type);
   };
 
-  // Calcular feriados paginados
-  const startIndex = currentPage * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
-  const paginatedHolidays = holidays.slice(startIndex, endIndex);
-  const totalPages = Math.ceil(holidays.length / ITEMS_PER_PAGE);
+  // Feriados próximos 30 días filtrados por país
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const in30Days = new Date(today);
+  in30Days.setDate(today.getDate() + 30);
 
-  const handlePreviousPage = () => {
-    if (currentPage > 0) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
+  const upcomingHolidays = holidays
+    .filter(h => {
+      const [y, m, d] = h.date.split('T')[0].split('-').map(Number);
+      const hDate = new Date(y, m - 1, d);
+      const country = extractCountry(h.name);
+      return hDate >= today && hDate <= in30Days && ALLOWED_COUNTRIES.includes(country as AllowedCountry);
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages - 1) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+  const holidaysByCountry = ALLOWED_COUNTRIES.reduce((acc, country) => {
+    acc[country] = upcomingHolidays.filter(h => extractCountry(h.name) === country);
+    return acc;
+  }, {} as Record<AllowedCountry, Holiday[]>);
 
   if (loading) {
     return (
@@ -229,75 +255,67 @@ export function AdminView() {
         {/* Miembros del Equipo */}
         <div className="lg:col-span-2 space-y-4  ">
          
-      {/* Lista de feriados */}
+      {/* Feriados próximos 30 días */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Calendar className="w-5 h-5" />
-            <span>Feriados Programados</span>
-          </CardTitle>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="flex items-center space-x-2">
+                <Calendar className="w-5 h-5" />
+                <span>Feriados — Próximos 30 días</span>
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                {ALLOWED_COUNTRIES.map(c => `${COUNTRY_FLAGS[c]} ${c.charAt(0) + c.slice(1).toLowerCase()}`).join(' · ')}
+              </p>
+            </div>
+            {upcomingHolidays.length > 0 && (
+              <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full font-medium">
+                {upcomingHolidays.length} {upcomingHolidays.length === 1 ? 'feriado' : 'feriados'}
+              </span>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            </div>
-          ) : holidays.length === 0 ? (
+          {upcomingHolidays.length === 0 ? (
             <div className="text-center text-muted-foreground py-8">
-              <Calendar className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>No hay feriados programados</p>
-              <p className="text-sm">Agrega el primer feriado usando el formulario</p>
+              <Calendar className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              <p className="text-sm font-medium">Sin feriados en los próximos 30 días</p>
+              <p className="text-xs mt-1">Para {ALLOWED_COUNTRIES.map(c => c.charAt(0) + c.slice(1).toLowerCase()).join(', ')}</p>
             </div>
           ) : (
-            <>
-              <div className="space-y-3">
-                {paginatedHolidays.map(holiday => (
-                  <div
-                    key={holiday.id}
-                    className="flex items-center justify-between p-3 border rounded-lg bg-gradient-subtle"
-                  >
-                    <div>
-                      <h4 className="font-medium text-foreground">{holiday.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {formatDate(holiday.date)}
-                      </p>
-                      <span className="inline-block mt-1 px-2 py-1 text-xs rounded-full bg-primary/10 text-primary">
-                        {holiday.scope}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* Paginación */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between pt-4 mt-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    Mostrando {startIndex + 1}-{Math.min(endIndex, holidays.length)} de {holidays.length} feriados
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      type="button"
-                      className="flex items-center space-x-1 px-2 py-1 border rounded text-sm"
-                      onClick={handlePreviousPage}
-                      disabled={currentPage === 0}
-                    >
-                      <span>Anterior</span>
-                    </button>
-                    <span className="text-sm text-muted-foreground px-3">
-                      {currentPage + 1} / {totalPages}
+            <div className="space-y-4">
+              {ALLOWED_COUNTRIES.filter(c => holidaysByCountry[c].length > 0).map(country => (
+                <div key={country}>
+                  <div className={`flex items-center space-x-2 px-2 py-1 rounded-md mb-2 w-fit ${COUNTRY_COLORS[country]}`}>
+                    <span className="text-base">{COUNTRY_FLAGS[country]}</span>
+                    <span className="text-xs font-semibold tracking-wide">
+                      {country.charAt(0) + country.slice(1).toLowerCase()}
                     </span>
-                    <button
-                      type="button"
-                      className="flex items-center space-x-1 px-2 py-1 border rounded text-sm"
-                      onClick={handleNextPage}
-                      disabled={currentPage >= totalPages - 1}
-                    >
-                      <span>Siguiente</span>
-                    </button>
+                    <span className="text-xs opacity-70">({holidaysByCountry[country].length})</span>
+                  </div>
+                  <div className="space-y-2 pl-1">
+                    {holidaysByCountry[country].map(holiday => (
+                      <div
+                        key={holiday.id}
+                        className="flex items-center justify-between p-2.5 border rounded-lg bg-gradient-subtle hover:bg-muted/40 transition-colors"
+                      >
+                        <div className="flex-1 min-w-0 pr-3">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {stripCountry(holiday.name)}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatDate(holiday.date)}
+                          </p>
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary whitespace-nowrap">
+                          {holiday.scope}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              )}
-            </>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
