@@ -31,8 +31,17 @@ export function CalendarView() {
   const loadEvents = async () => {
     setLoading(true);
     try {
-      const calendarEvents = await calendarService.getCalendarEvents(currentMonth, currentYear);
-      setEvents(calendarEvents);
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear  = currentMonth === 0 ? currentYear - 1 : currentYear;
+      const nextMonth = currentMonth === 11 ? 0 : currentMonth + 1;
+      const nextYear  = currentMonth === 11 ? currentYear + 1 : currentYear;
+
+      const [current, prev, next] = await Promise.all([
+        calendarService.getCalendarEvents(currentMonth, currentYear),
+        calendarService.getCalendarEvents(prevMonth, prevYear),
+        calendarService.getCalendarEvents(nextMonth, nextYear),
+      ]);
+      setEvents([...current, ...prev, ...next]);
     } catch (error) {
       console.error('Error loading events:', error);
     } finally {
@@ -60,13 +69,21 @@ export function CalendarView() {
 
     const days = [];
 
+    const getEventsForDate = (date: Date) => {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${m}-${d}`;
+      return events.filter(e => e.date === dateStr);
+    };
+
     // Días del mes anterior para completar la primera semana
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
       const prevMonthDay = new Date(currentYear, currentMonth, -i);
       days.push({
         date: prevMonthDay,
         isCurrentMonth: false,
-        events: []
+        events: getEventsForDate(prevMonthDay)
       });
     }
 
@@ -90,7 +107,7 @@ export function CalendarView() {
       days.push({
         date: nextMonthDay,
         isCurrentMonth: false,
-        events: []
+        events: getEventsForDate(nextMonthDay)
       });
     }
 
