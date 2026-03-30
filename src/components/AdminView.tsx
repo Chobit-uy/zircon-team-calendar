@@ -8,32 +8,22 @@ import { googleSheetsService } from '@/services/googleSheets';
 import { calendarService } from '@/services/calendarService';
 import { useToast } from '@/hooks/use-toast';
 
-const ALLOWED_COUNTRIES = ['ARGENTINA', 'URUGUAY', 'CHILE', 'YEMEN'] as const;
+const ALLOWED_COUNTRIES = ['Argentina', 'Uruguay', 'Chile', 'Yemen'] as const;
 type AllowedCountry = typeof ALLOWED_COUNTRIES[number];
 
 const COUNTRY_COLORS: Record<AllowedCountry, string> = {
-  ARGENTINA: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  URUGUAY:   'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
-  CHILE:     'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  YEMEN:     'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  Argentina: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  Uruguay:   'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300',
+  Chile:     'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  Yemen:     'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
 };
 
 const COUNTRY_FLAGS: Record<AllowedCountry, string> = {
-  ARGENTINA: '🇦🇷',
-  URUGUAY:   '🇺🇾',
-  CHILE:     '🇨🇱',
-  YEMEN:     '🇾🇪',
+  Argentina: '🇦🇷',
+  Uruguay:   '🇺🇾',
+  Chile:     '🇨🇱',
+  Yemen:     '🇾🇪',
 };
-
-function extractCountry(name: string): string {
-  const parts = name.split(' - ');
-  return parts.length > 1 ? parts[parts.length - 1].trim().toUpperCase() : '';
-}
-
-function stripCountry(name: string): string {
-  const parts = name.split(' - ');
-  return parts.length > 1 ? parts.slice(0, -1).join(' - ') : name;
-}
 
 // TeamView logic
 interface TeamMemberStats {
@@ -188,13 +178,12 @@ export function AdminView() {
     .filter(h => {
       const [y, m, d] = h.date.split('T')[0].split('-').map(Number);
       const hDate = new Date(y, m - 1, d);
-      const country = extractCountry(h.name);
-      return hDate >= today && hDate <= in30Days && ALLOWED_COUNTRIES.includes(country as AllowedCountry);
+      return hDate >= today && hDate <= in30Days && ALLOWED_COUNTRIES.includes(h.country as AllowedCountry);
     })
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const holidaysByCountry = ALLOWED_COUNTRIES.reduce((acc, country) => {
-    acc[country] = upcomingHolidays.filter(h => extractCountry(h.name) === country);
+    acc[country] = upcomingHolidays.filter(h => h.country === country);
     return acc;
   }, {} as Record<AllowedCountry, Holiday[]>);
 
@@ -297,19 +286,17 @@ export function AdminView() {
                     {holidaysByCountry[country].map(holiday => (
                       <div
                         key={holiday.id}
-                        className="flex items-center justify-between p-2.5 border rounded-lg bg-gradient-subtle hover:bg-muted/40 transition-colors"
+                        className="flex items-center space-x-3 p-2.5 border rounded-lg bg-gradient-subtle hover:bg-muted/40 transition-colors"
                       >
-                        <div className="flex-1 min-w-0 pr-3">
+                        <span className="text-xl shrink-0">{COUNTRY_FLAGS[country]}</span>
+                        <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">
-                            {stripCountry(holiday.name)}
+                            {holiday.name}
                           </p>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {formatDate(holiday.date)}
                           </p>
                         </div>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary whitespace-nowrap">
-                          {holiday.scope}
-                        </span>
                       </div>
                     ))}
                   </div>

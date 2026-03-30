@@ -50,8 +50,8 @@ class CalendarService {
       const [eventYear, eventMonth] = dateStr.split('-').map(Number);
       if ((eventMonth - 1) === month && eventYear === year) {
         events.push({
-          id: `holiday-${holiday.id}`,
-          title: holiday.name,
+          id: `holiday-${holiday.id}-${holiday.country}`,
+          title: holiday.country ? `${holiday.name} (${holiday.country})` : holiday.name,
           date: dateStr,
           type: 'holiday'
         });

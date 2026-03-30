@@ -10,13 +10,10 @@ export interface TimeOffEntry {
 }
 
 export interface Holiday {
-  id: string;
+  id: string | number;
   name: string;
   date: string;
-  scope: 'Nacional' | 'Local/Regional' | 'Empresa' | 'Otro';
-  createdBy: string;
-  createdAt: string;
-  rowIndex?: string;
+  country: string;
 }
 
 export interface CalendarEvent {
