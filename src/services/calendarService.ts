@@ -43,8 +43,10 @@ class CalendarService {
       }
     });
 
+    const CALENDAR_COUNTRIES = ['Argentina', 'Chile', 'Uruguay', 'Yemen'];
+
     // Convertir feriados a eventos de calendario
-    holidays.forEach(holiday => {
+    holidays.filter(h => CALENDAR_COUNTRIES.includes(h.country)).forEach(holiday => {
       const holidayDate = new Date(holiday.date);
       const dateStr = holidayDate.toISOString().split('T')[0];
       const [eventYear, eventMonth] = dateStr.split('-').map(Number);
